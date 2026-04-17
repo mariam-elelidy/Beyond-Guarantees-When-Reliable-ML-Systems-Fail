@@ -1,0 +1,204 @@
+Beyond Guarantees: When Reliable ML Systems Fail
+──────────────────────────────────────────────────────────────────────────────
+n=2000  │  d=8  │  α=0.10  │  seed=42  │  target coverage=0.90
+──────────────────────────────────────────────────────────────────────────────
+
+This is not a summary of the series.
+It is adversarial evidence that every tool in the series can pass
+simultaneously while the system fails in a way that matters.
+
+══════════════════════════════════════════════════════════════════════════════
+FAILURE MODE 1 — WHEN METRICS LIE
+══════════════════════════════════════════════════════════════════════════════
+
+Three models. All pass standard reliability checks. Which one should you deploy?
+
+  model               coverage     width      RMSE        R²  cov/width   decision?
+  ──────────────────────────────────────────────────────────────────────────────────
+  Ridge (useful)        0.9025    2.0386    0.6058    0.9413    0.44270    DEPLOY
+  Mean predictor        0.8900    8.4329    2.5008   -0.0000    0.10554    REJECT
+  Heavy ridge           0.8900    7.6564    2.2635    0.1807    0.11624    REJECT
+
+Mean predictor passes coverage check: 0.8900 (threshold: 0.90 → borderline)
+Mean predictor R² = -0.000048  (zero information content — literally random)
+Coverage efficiency ratio: 4.19× (ridge vs mean predictor)
+
+What each metric sees:
+  Coverage: AMBIGUOUS — mean predictor barely fails (0.890 vs 0.900)
+  RMSE:     CATCHES IT — mean predictor RMSE = 2.50 vs ridge = 0.61
+  R²:       CATCHES IT — R² = -0.000 is definitive
+  cov/width:CATCHES IT — 0.106 vs 0.443
+
+The critical observation: with a slightly different seed or more calibration data,
+the mean predictor's coverage would be 0.901 and PASS all standard checks.
+The only metric that cannot be accidentally passed is R² > 0.
+Coverage efficiency (cov/width) is the second line of defence.
+
+⚠  Coverage alone cannot distinguish a useful model from a trivial one.
+   Minimum additional check: R² > 0 AND coverage efficiency > threshold
+
+══════════════════════════════════════════════════════════════════════════════
+FAILURE MODE 2 — WHEN DECISIONS FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+Global coverage = 0.9025 (passes). High-stake cases disproportionately missed.
+
+  Global coverage    : 0.9025  ✓ passes 0.90 check
+  High-stake coverage: 0.8700  ✗ top 25% of |y| — extreme outcomes
+  Low-stake coverage : 0.9133
+  Coverage gap       : +0.0433  (low − high)
+  q                  : 1.0193   (same for ALL points — no subgroup distinction)
+
+  Asymmetric cost (miss high-stake = 10×, miss low-stake = 1×):
+    Actual cost (with subgroup gap)  : 0.3900
+    Cost if coverage were uniform    : 0.3169
+    Cost inflation due to gap        : 1.23×
+
+The mechanism: |y| is large precisely when the true signal is far from the mean.
+These are the hardest cases for a linear model — large residuals, larger errors.
+The same q that comfortably covers the bulk of predictions is too narrow for extremes.
+
+The model doesn't know this. Global coverage is 90.3%, passes every check.
+The decision system operating on this model faces 23% higher expected cost
+than it would if coverage were uniformly distributed.
+
+In a clinical context: "extreme outcome" = "the cases that need reliable predictions
+most" (high-risk patients, unusual presentations). The guarantee is weakest
+exactly where it needs to be strongest.
+
+⚠  Global coverage is a population metric. Decisions are individual.
+   Minimum additional check: subgroup coverage audit by stake level
+
+══════════════════════════════════════════════════════════════════════════════
+FAILURE MODE 3 — WHEN COVERAGE IS USELESS
+══════════════════════════════════════════════════════════════════════════════
+
+Coverage increases monotonically toward 1.0 as width → ∞.
+The metric rewards inflation, not information.
+
+  alpha   coverage      width  efficiency   actionable
+  ────────────────────────────────────────────────────────────────────────────
+  0.500     0.5275     0.8394    0.628424   YES   ← most informative per unit
+  0.400     0.6275     1.0989    0.571037   YES
+  0.300     0.7250     1.3727    0.528145   YES
+  0.200     0.8175     1.6747    0.488135   YES
+  0.100     0.9025     2.0386    0.442698   YES   ← standard alpha
+  0.050     0.9625     2.4337    0.395490   YES
+  0.020     0.9825     2.8093    0.349735   YES
+  0.010     0.9900     3.0261    0.327154   NO    ← trivial
+  0.005     0.9925     3.3101    0.299839   NO    ← trivial
+  0.001     0.9975     3.6084    0.276442   NO    ← trivial
+
+  Efficiency at α=0.50  (narrowest): 0.628
+  Efficiency at α=0.001 (widest)  : 0.276
+  Efficiency loss from over-covering: 56.0%
+
+  The trivial bound (never built, always implicitly available):
+    Interval [-∞, +∞] → coverage = 1.000 → efficiency ≈ 0
+    This passes any coverage threshold, at zero information cost.
+
+Every additional 0.9 percentage points of coverage beyond 90% costs:
+  +0.39 units of width (α=0.10 → 0.05: width 2.04 → 2.43)
+  +0.44 units of width (α=0.05 → 0.02: width 2.43 → 2.81)
+  +0.22 units of width (α=0.02 → 0.01: width 2.81 → 3.03)
+
+The clinical threshold (width < 3.0) is crossed at α=0.010.
+Beyond that: each fractional coverage gain costs increasing width and
+produces intervals that cannot inform any concrete decision.
+
+⚠  Coverage → 1.0 is not reliability. It is inflation.
+   Minimum additional check: coverage efficiency = coverage / width
+
+══════════════════════════════════════════════════════════════════════════════
+FAILURE MODE 4 — WHEN MONITORING MISSES FAILURES
+══════════════════════════════════════════════════════════════════════════════
+
+Label shift: P(X) unchanged → MMD ≈ 0.  P(Y|X) changes → coverage collapses.
+The feature-space monitor reports ALL CLEAR on every single case.
+
+  Sigma = 1.1792  │  MMD null threshold (α=0.05) = 0.002086
+
+    drift      MMD²(X)   coverage   alarm        monitor       reality
+  ────────────────────────────────────────────────────────────────────────────
+      0.0    -0.000936     0.9100   no         ALL CLEAR    ok
+      0.5    +0.000478     0.4450   no         ALL CLEAR    FAILING  ← BLIND SPOT
+      1.0    -0.000850     0.2725   no         ALL CLEAR    FAILING  ← BLIND SPOT
+      1.5    -0.001506     0.3300   no         ALL CLEAR    FAILING  ← BLIND SPOT
+      2.0    -0.000509     0.1700   no         ALL CLEAR    FAILING  ← BLIND SPOT
+      2.5    +0.000296     0.1650   no         ALL CLEAR    FAILING  ← BLIND SPOT
+      3.0    +0.000705     0.1075   no         ALL CLEAR    FAILING  ← BLIND SPOT
+
+  MMD alarms fired: 0 / 7
+  Coverage at drift=0  : 0.9100
+  Coverage at drift=3.0: 0.1075
+  Total coverage drop  : -0.8025
+
+This is the most dangerous failure mode in the series.
+In the covariate shift detector (Repo 6), MMD correctly identified when
+features drifted and coverage would degrade.
+Here, features are drawn from the EXACT SAME N(0,I) distribution.
+There is nothing for a feature-space monitor to see.
+
+The data-generating process changed (w* shifted), not the features.
+This is label shift / concept drift: the relationship between X and Y changed
+while X itself remained indistinguishable from training data.
+
+MMD values are indistinguishable from the null distribution (all near zero,
+some negative from U-statistic noise). The monitor has no signal.
+Coverage has collapsed to 10.75%. The model continues reporting 90% confidence.
+
+The Covariate Shift Detector (Repo 6) would give this system a clean bill of health.
+ECE monitoring would show normal calibration on features.
+RMSE monitoring on unlabeled data is impossible.
+
+The only solution: deploy a labeled probe set alongside the model.
+Collect ground-truth labels on a small random sample.
+Monitor empirical coverage on that probe set continuously.
+This is the minimum check that cannot be bypassed by any distributional trick.
+
+══════════════════════════════════════════════════════════════════════════════
+SYNTHESIS: THE MINIMUM RELIABILITY CONTRACT
+══════════════════════════════════════════════════════════════════════════════
+
+  Check                             Status      Why insufficient alone
+  ────────────────────────────────────────────────────────────────────────────
+  Coverage >= 1-α                   necessary   mean predictor can pass (F1)
+  RMSE / accuracy                   necessary   wide model can pass coverage (F1)
+  R² > 0                            necessary   subgroup gap hidden (F2)
+  Coverage efficiency               necessary   stake-level gap hidden (F2)
+  Subgroup coverage audit           necessary   label shift invisible (F4)
+  Feature-space MMD alarm           necessary   label shift invisible (F4)
+  Label probe monitoring            necessary   minimum complete check
+
+  No single check is sufficient. The reliability contract requires all of them.
+
+══════════════════════════════════════════════════════════════════════════════
+FINAL TENSORS
+══════════════════════════════════════════════════════════════════════════════
+
+Section 1 — [coverage, width, RMSE, R², cov/width]
+Rows: [Ridge, Mean predictor, Heavy ridge]
+[[ 0.9025  2.0386  0.6058  0.9413  0.4427],
+ [ 0.8900  8.4329  2.5008 -0.0000  0.1055],
+ [ 0.8900  7.6564  2.2635  0.1807  0.1162]]
+
+Section 3 — [alpha, coverage, width, efficiency, actionable(0/1)]
+[[0.500  0.5275  0.8394  0.6284  1.0],
+ [0.400  0.6275  1.0989  0.5710  1.0],
+ [0.300  0.7250  1.3727  0.5281  1.0],
+ [0.200  0.8175  1.6747  0.4881  1.0],
+ [0.100  0.9025  2.0386  0.4427  1.0],
+ [0.050  0.9625  2.4337  0.3955  1.0],
+ [0.020  0.9825  2.8093  0.3497  1.0],
+ [0.010  0.9900  3.0261  0.3272  0.0],
+ [0.005  0.9925  3.3101  0.2998  0.0],
+ [0.001  0.9975  3.6084  0.2764  0.0]]
+
+Section 4 — [drift, MMD², coverage, alarm(0/1)]
+[[ 0.0  -0.00094   0.9100  0.0],
+ [ 0.5  +0.00048   0.4450  0.0],
+ [ 1.0  -0.00085   0.2725  0.0],
+ [ 1.5  -0.00151   0.3300  0.0],
+ [ 2.0  -0.00051   0.1700  0.0],
+ [ 2.5  +0.00030   0.1650  0.0],
+ [ 3.0  +0.00071   0.1075  0.0]]
