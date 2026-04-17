@@ -11,7 +11,7 @@ The capstone of the Mathematical Reliability for ML series. Not a summary — an
 Each of the six preceding repos provides one necessary reliability check. This artifact provides empirical evidence that none is sufficient alone — and identifies the one check that cannot be bypassed by any of the four demonstrated failure modes.
 
 **Series:**
-[Mathematical Reliability](https://github.com/mariam-elelidy/Mathematical-Reliability-for-ML-Predictions) · [Assumption Stress Harness](https://github.com/mariam-elelidy/Assumption-Stress-Harness) · [Influence & Stability](https://github.com/mariam-elelidy/Influence-Stability-Analysis-for-ML-Predictions) · [Calibration](https://github.com/mariam-elelidy/Calibration-as-a-Measurable-Reliability-Constraint) · [Selective Prediction](https://github.com/mariam-elelidy/Selective-Prediction-Under-Uncertainty) · [Shift Detector](https://github.com/mariam-elelidy/Covariate-Shift-Detector)
+[Mathematical Reliability](https://github.com/mariam-elelidy/Mathematical-Reliability-for-ML-Predictions) · [Assumption Stress Harness](https://github.com/mariam-elelidy/Assumption-Stress-Harness) · [Influence & Stability](https://github.com/mariam-elelidy/Influence-Stability-Analysis-for-ML-Predictions) · [Calibration](https://github.com/mariam-elelidy/Calibration-as-a-Measurable-Reliability-Constraint) · [Selective Prediction](https://github.com/mariam-elelidy/Selective-Prediction-Under-Uncertainty) · [Shift Detector](https://github.com/mariam-elelidy/Covariate-Shift-Detector-with-Coverage-Audit)
 
 ---
 
